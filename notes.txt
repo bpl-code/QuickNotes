@@ -1,0 +1,16 @@
+double enter exits current assignment (back one level)
+.. goes back one level of assignment 
+<< exits all layers of assignment
+
+Topics can have topics within it 
+
+Add navigation feature to see and add levels of assignment
+
+
+TO DO: 
+Change the assign function to two lists, 
+one list for all the assigment codes 
+use list.index(userNote[:2]) get index code which correspondes to list 2
+list 2 = assignment codes
+check for two blanks 
+if not return assignment code 

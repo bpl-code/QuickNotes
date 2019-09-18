@@ -1,9 +1,21 @@
 #QuickNotes
 #A note assignment program for CLI
 
-def codeReader(userNote):
-    assignmentCode = None
-    if userNote[:2] == '||':
-        assignmentCode = 'notebook'
+#Remember to .lstrip() all inputs!!!!!
+        
+def codeReader(userNote, oldActionCode):
+    assignmentCodesList = ['', '||', ';;', '..', '<<']
+    actionCodeList = ['blank', 'notebook', 'topic', 'back', 'exit']
+    assigmentNumber = assignmentCodesList.index(userNote[:2])
+    actionCodeName = actionCodeList[assigmentNumber]
 
-    return assignmentCode
+    #check for double enter
+    if actionCodeName == oldActionCode && actionCodeName == 'blank':
+        actionCode = 'back'
+
+    return actionCode
+
+    
+
+    
+
