@@ -2,6 +2,5 @@
 
 import main as program
 
-program.main()
-print(program.main.getAutoLogin())
-print(program.main.getQuickNotesDirectory())
+app = program.app()
+app.setup()
