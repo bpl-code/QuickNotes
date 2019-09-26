@@ -8,11 +8,12 @@ class app():
         self.username = subprocess.check_output('whoami', universal_newlines=True)
         self.mainConfigFile = ''
         self.mainConfigData = ''
+        self.currentSession = None
         #config varibles Defaults
         self.autoLogin = False
         self.accountName = ''
-        #self.quickNotesDirectory = '/home/' + self.getUsername() + '/Documents/QuickNotes/'
-
+        self.quickNotesDirectory = '/home/{}/Documents/QuickNotes/'.format(self.getUsername())
+        self.accountDirectory = ''
     #setup
     def setup(self):
         directoryFound = self.findHomeDirectory()
@@ -20,7 +21,8 @@ class app():
             self.loadMainConfig()
         else:
             self.createMainConfig()
-        self.fetchUserName()
+        self.fetchAccountDetails()
+        self.createAccountSession()
 
     #Get Functions
 
@@ -37,6 +39,9 @@ class app():
     def getQuickNotesDirectory(self):
         return self.quickNotesDirectory
 
+    def getAccountDirectory(self):
+        return self.accountDirectory
+
     #Main Functions
         
     def findHomeDirectory(self):
@@ -52,7 +57,7 @@ class app():
 
     def createMainConfig(self):
         self.mainConfigFile = open('/home/{}/Documents/QuickNotes/.main.conf'.format(self.getUsername()), 'w+')
-        self.mainConfigFile.write("autoLogin={}\naccountName={}\nquickNotesDirectory='/home/{}/Documents/QuickNotes/'".format(False,'', self.getUsername()))
+        self.mainConfigFile.write("autoLogin={}\naccountName={}\nquickNotesDirectory={}".format(False,'', self.getQuickNotesDirectory()))
         #self.loadMainConfig()
 
     def loadMainConfig(self):
@@ -61,11 +66,14 @@ class app():
         self.autoLogin = self.mainConfigData[0].split('=')[1]
         self.accountName = self.mainConfigData[1].split('=')[1]
         self.quickNotesDirectory = self.mainConfigData[2].split('=')[1] #Needs to be eval
+        print(self.autoLogin)
+        print(self.accountName)
+        print(self.quickNotesDirectory)
     
 
-    #if there is config check for auto log in preference
-    #ask for username
-    def fetchUserName(self):
+    
+    def fetchAccountDetails(self):
+        #Checks for autolog in setting in main.conf
         accountName = ''
         if self.autoLogin == True:
             accountName = self.accountName
@@ -75,56 +83,75 @@ class app():
             accountLoaded = False
             while accountLoaded == False:
                 accountName = input("Enter Account Name: ")
-                accountSearch = subprocess.call(['ls', '/home/{}/Documents/QuickNotes/{}/'.format(self.getUsername(), self.getAccountName()) ], stderr=subprocess.DEVNULL)
+                accountSearch = subprocess.call(['ls', '/home/{}/Documents/QuickNotes/{}/'.format(self.getUsername(), accountName) ], stderr=subprocess.DEVNULL)
                 if accountSearch != 0:
                     createAccount = input("No account found! Create account? ")
                     if createAccount == 'y':
                         accountLoaded = True
                         self.accountName = accountName
+                        self.accountDirectory = '{}{}'.format(self.getQuickNotesDirectory(), self.getAccountName())
                         self.createUserConfig()
                     else: 
                         accountLoaded = False
                 else:
                     self.accountName = accountName
+                    self.accountDirectory = '{}{}'.format(self.getQuickNotesDirectory(), self.getAccountName())
                     accountLoaded = True
                     self.loadUserConfig()
 
     #check for/create user config
     def loadUserConfig(self):
-        accountConfig = open('/home/{}/Documents/QuickNotes/{}/{}.conf'.format(self.getUsername(), self.getAccountName(), self.getAccountName()), 'r')
-
+        accountConfig = open('{}/.{}.conf'.format(self.getAccountDirectory(), self.getAccountName()), 'r')
+        #Read line of config and eval class creation line
 
     def createUserConfig(self):
-        subprocess.call(['mkdir', '/home/{}/Documents/QuickNotes/{}/'.format(self.getUsername(), self.getAccountName())])
-        accountConfig = open('/home/{}/Documents/QuickNotes/{}/.{}.conf'.format(self.getUsername(), self.getAccountName(),self.getAccountName()), "w+")
-        accountConfig.close()
-    #get config set up varibles from user config and create app(user configs)
+        subprocess.call(['mkdir', '{}'.format(self.getAccountDirectory())])
+        accountConfig = open('{}/.{}.conf'.format(self.getAccountDirectory() ,self.getAccountName()), "w+")
+        accountConfig.write("userAccount({},{})".format(self.getAccountName(),self.getAccountDirectory()))
+
+    def createAccountSession(self): 
+        #Creates session - the part of the programs that manages notebooks and notes
+        self.currentSession = userAccount(self.getAccountName(),self.getAccountDirectory(), self.getQuickNotesDirectory())
+
+    
+
+#UserAccount Class a class that holds notebook objects etc
+
+
 
 
     
 
 class userAccount():
-    def __init__(self, userAccount):
-        self.userAccount = userAccount
-        self.accountDirectory = ''
+    def __init__(self, userAccountName, accountDirectory, homeDirectory):
+        #Config Settings
+        self.userAccountName = userAccountName
+        self.homeDirectory = homeDirectory 
+        self.accountDirectory = accountDirectory
+        self.notebooks = []
+
+        #Session Settings
+        self.currentDirectory = accountDirectory
+        self.setup()
+
+        #App objects
         self.currentNotebook = ''
         self.currentTopic = ''
-        self.userInput = ''
-        self.previousInput = '||' #Have codeReader store current command here
-        self.notebooks = [self.addNotebook('scrapeBook')]
+        self.currentUserInput = ''
+        self.previousUserInput = '||' #Have codeReader store current command here
+
 
     #Setup and configuration functions
-    #add a set directory and cd to directory functions
-    def establishDirectory(self):
-        #
-        return 0
-
-
-
+    def setup(self):
+        #Add if loaded check and bypass create scrapbook if loaded 
+        self.addNotebook('scrapeBook') #Creates the basic scrapbook where unassigned notes go 
 
     #get Functions
-    def getUserAccount(self):
-        return self.userAccount
+    def getUserAccountName(self):
+        return self.userAccountName
+
+    def getNotebooks(self):
+        return self.notebooks
 
     def getCurrentNotebook(self):
         return self.currentNotebook
@@ -133,67 +160,87 @@ class userAccount():
         return self.currentTopic
 
     def getUserInput(self):
-        return self.userInput
+        return self.currentUserInput
 
     def getPreviousInput(self):
         return self.previousInput
 
-    #main functions
+    def getCurrentDirectory(self):
+        return self.currentDirectory
+    
 
+    #main functions
     def fetchUserInput(self):
         #Removes whitespace from beginning
         userNote = input("")
         self.userInput = userNote.lstrip()
 
-    def codeReader(self, userNote, oldActionCode):
-        assignmentCodesList = ['', '||', ';;', '..', '<<', '>>', ';>', ';/', '? ']
-        actionCodeList = ['blank', 'notebook', 'topic', 'back', 'exit', 'addNotebook', 'addTopic', 'addSubTopic', 'ignore']
+    def codeReader(self, userNote, oldAssigmentCode):
+        assignmentCodesList = {'':'blank', '||':'notebook', ';;':'topic', '..':'back', '<<':'exit', '>>':'addNotebook', ';>':'addTopic', ';/':'addSubTopic', '? ':'ignore'}
         #add try: if fail then must be a note
         try:
-            assigmentNumber = assignmentCodesList.index(userNote[:2])
+            assigmentCodeName = assignmentCodesList[userNote[:2]]
         except ValueError: 
-            assigmentNumber = 8
-        actionCodeName = actionCodeList[assigmentNumber]
+            assigmentCodeName = 'ignore'
 
         #check for double enter
-        if actionCodeName == oldActionCode and actionCodeName == 'blank':
-            actionCodeName = 'back'
+        if assigmentCodeName == oldAssigmentCode and assigmentCodeName == 'blank':
+            assigmentCodeName = 'back'
 
-        return actionCodeName
+        return assigmentCodeName
 
-    def actionSelect(self, actionCodeName):
+    def actionSelect(self, assigmentCodeName):
         #Uses the action code to call the correct function
-        if actionCodeName == 'blank':
+        if assigmentCodeName == 'blank':
             action = self.addNote()
-        elif actionCodeName == 'notebook':
+        elif assigmentCodeName == 'notebook':
             action = self.changeDirectory(self.userInput[2:].lstrip(), 'notebook') #Removes assigment code and any possible white space
-        elif actionCodeName == 'topic':
+        elif assigmentCodeName == 'topic':
             action = self.changeDirectory(self.userInput[2:].lstrip(), 'topic')
-        elif actionCodeName == 'back':
+        elif assigmentCodeName == 'back':
             action = self.changeDirectory('..', 'back') #Triggers back function within function
-        elif actionCodeName == 'exit':
+        elif assigmentCodeName == 'exit':
             action = self.changeDirectory(self.notebooks[0], 'notebook')
-        elif actionCodeName == 'addNotebook':
+        elif assigmentCodeName == 'addNotebook':
             action = self.addNotebook()
-        elif actionCodeName == 'addTopic':
+        elif assigmentCodeName == 'addTopic':
             action = self.addTopic()
-        elif actionCodeName == 'addSubTopic':
+        elif assigmentCodeName == 'addSubTopic':
             action = self.addSubTopic()
-        elif actionCodeName == 'ignore':
+        elif assigmentCodeName == 'ignore':
             action = self.addNote(userNote=self.userInput)
 
         return action
 
-
+#Action functions
 
     def changeDirectory(self, destination, directoryType):
         #Directory Type changes functionality
-        return 'changeDirectory'
+        if directoryType == 'back':
+            directory = self.getCurrentDirectory().split('/')
+            directoryBack = directory.pop()
+            newDirectory = '/'.format(directoryBack)
+            return newDirectory
+        elif directoryType == 'exit':
+            self.currentDirectory = self.homeDirectory
+        elif directoryType == 'addNotebook' or directoryType == 'addTopic' or directoryType == 'addSubTopic':
+            self.currentDirectory = self.homeDirectory
+
+            
 
 
-    def addNotebook(self):
+
+    def addNotebook(self, notebookName):
         #creates folder in a directory and creates notebook object
-        return 'AddNoteBook'
+        newNotebookDirectory = '{}/{}'.format(self.getCurrentDirectory(), notebookName)
+        subprocess.call(['mkdir', newNotebookDirectory])
+        self.currentDirectory = newNotebookDirectory
+        newNotebook = notebook(notebookName, self.getCurrentDirectory())
+        self.notebooks.append(newNotebook)
+        self.currentNotebook = newNotebook
+
+        
+        
 
     def addTopic(self):
         currentNoteBook = self.getCurrentNotebook() 
@@ -217,6 +264,11 @@ class notebook():
         self.notebookName = notebookName
         self.topics = []
         self.directory = ''
+
+        #get functions
+
+    def getNotebookName(self):
+        return self.notebookName
 
 
 
