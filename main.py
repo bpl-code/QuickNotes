@@ -111,24 +111,22 @@ class app():
 
     def createAccountSession(self): 
         #Creates session - the part of the programs that manages notebooks and notes
-        self.currentSession = userAccount(self.getAccountName(),self.getAccountDirectory(), self.getQuickNotesDirectory())
+        self.currentSession = userAccount(self.getAccountName(),self.getAccountDirectory())
 
     
 
-#UserAccount Class a class that holds notebook objects etc
-
-
-
+##UserAccount Class a class that holds notebook objects etc
+##################################################################
 
     
 
 class userAccount():
-    def __init__(self, userAccountName, accountDirectory, homeDirectory):
+    def __init__(self, userAccountName, accountDirectory):
         #Config Settings
         self.userAccountName = userAccountName
-        self.homeDirectory = homeDirectory 
         self.accountDirectory = accountDirectory
-        self.notebooks = []
+        self.notebooks = {}
+        self.notebookNames = []
 
         #Session Settings
         self.currentDirectory = accountDirectory
@@ -144,7 +142,7 @@ class userAccount():
     #Setup and configuration functions
     def setup(self):
         #Add if loaded check and bypass create scrapbook if loaded 
-        self.addNotebook('scrapeBook') #Creates the basic scrapbook where unassigned notes go 
+        self.addNotebook('scrapBook') #Creates the basic scrapbook where unassigned notes go 
 
     #get Functions
     def getUserAccountName(self):
@@ -167,13 +165,21 @@ class userAccount():
 
     def getCurrentDirectory(self):
         return self.currentDirectory
+
+    def getAccountDirectory(self):
+        return self.accountDirectory
+
+
     
 
     #main functions
     def fetchUserInput(self):
-        #Removes whitespace from beginning
+        #Removes whitespace from beginning & assigns past input to previous input
+        self.previousUserInput = self.getUserInput()
         userNote = input("")
-        self.userInput = userNote.lstrip()
+        self.currentUserInput = userNote.lstrip()
+
+
 
     def codeReader(self, userNote, oldAssigmentCode):
         assignmentCodesList = {'':'blank', '||':'notebook', ';;':'topic', '..':'back', '<<':'exit', '>>':'addNotebook', ';>':'addTopic', ';/':'addSubTopic', '? ':'ignore'}
@@ -186,67 +192,99 @@ class userAccount():
         #check for double enter
         if assigmentCodeName == oldAssigmentCode and assigmentCodeName == 'blank':
             assigmentCodeName = 'back'
-
+        
         return assigmentCodeName
+
+
 
     def actionSelect(self, assigmentCodeName):
         #Uses the action code to call the correct function
         if assigmentCodeName == 'blank':
-            action = self.addNote()
+            self.addNote()
+
         elif assigmentCodeName == 'notebook':
-            action = self.changeDirectory(self.userInput[2:].lstrip(), 'notebook') #Removes assigment code and any possible white space
+            self.changeDirectory(self.currentUserInput[2:].lstrip(), 'notebook') #Removes assigment code and any possible white space
+        
         elif assigmentCodeName == 'topic':
-            action = self.changeDirectory(self.userInput[2:].lstrip(), 'topic')
+            self.changeDirectory(self.currentUserInput[2:].lstrip(), 'topic')
+        
         elif assigmentCodeName == 'back':
-            action = self.changeDirectory('..', 'back') #Triggers back function within function
+            self.changeDirectory('..', 'back') #Triggers back function within function
+        
         elif assigmentCodeName == 'exit':
-            action = self.changeDirectory(self.notebooks[0], 'notebook')
+            self.changeDirectory(self.notebooks['scrapBook'], 'exit')
+        
         elif assigmentCodeName == 'addNotebook':
-            action = self.addNotebook()
+            self.addNotebook(self.getUserInput()[2:].lstrip())
+        
         elif assigmentCodeName == 'addTopic':
-            action = self.addTopic()
+            self.addTopic(self.getUserInput()[2:].lstrip())
+        
         elif assigmentCodeName == 'addSubTopic':
-            action = self.addSubTopic()
+            self.addSubTopic()
+        
         elif assigmentCodeName == 'ignore':
-            action = self.addNote(userNote=self.userInput)
+            self.addNote(self.userInput)
 
-        return action
 
-#Action functions
+    #Action functions
 
     def changeDirectory(self, destination, directoryType):
         #Directory Type changes functionality
         if directoryType == 'back':
             directory = self.getCurrentDirectory().split('/')
-            directoryBack = directory.pop()
-            newDirectory = '/'.format(directoryBack)
-            return newDirectory
+            directory.pop()
+            newDirectory = '/'.join(directory)
+            self.currentDirectory = newDirectory
+
         elif directoryType == 'exit':
-            self.currentDirectory = self.homeDirectory
-        elif directoryType == 'addNotebook' or directoryType == 'addTopic' or directoryType == 'addSubTopic':
-            self.currentDirectory = self.homeDirectory
-
-            
+            self.currentDirectory = self.getAccountDirectory()
 
 
+        elif directoryType == 'notebook':
+
+            if destination in self.notebooks:
+                self.currentDirectory = self.notebooks[destination].getDirectory()
+            else:
+                print("<{}> notebook does not exist. Use >>NOTEBOOKNAME to create a notebook.")
+
+
+        elif directoryType == 'topic':
+
+            currentDirectoryTopics = self.currentNotebook.getTopics()
+
+            if destination in currentDirectoryTopics:
+                self.currentDirectory = currentDirectoryTopics[destination].getDirectory()
+            else:
+                print("<{}> topic does not exist. Use ;>TOPICNAME to create a topic.")
+ 
+
+        
 
     def addNotebook(self, notebookName):
         #creates folder in a directory and creates notebook object
-        newNotebookDirectory = '{}/{}'.format(self.getCurrentDirectory(), notebookName)
-        subprocess.call(['mkdir', newNotebookDirectory])
-        self.currentDirectory = newNotebookDirectory
-        newNotebook = notebook(notebookName, self.getCurrentDirectory())
-        self.notebooks.append(newNotebook)
-        self.currentNotebook = newNotebook
+        try:
+            self.notebookNames.index(notebookName)
+            print("That notebook already exist!")
+        except ValueError:
+            newNotebookDirectory = '{}/{}'.format(self.getAccountDirectory(), notebookName)
+            subprocess.call(['mkdir', newNotebookDirectory])
 
-        
-        
+            #Change current directory to new directory 
+            self.currentDirectory = newNotebookDirectory
+            #Add notebook to notebook arrays
+            newNotebook = notebook(notebookName, self.getCurrentDirectory())
+            self.notebooks[notebookName] = newNotebook
+            self.currentNotebook = newNotebook
 
-    def addTopic(self):
-        currentNoteBook = self.getCurrentNotebook() 
-        currentTopic = self.getCurrentTopic()
 
-        return 'addTopic'
+
+    def addTopic(self, topicName):
+        currentNotebook = self.getCurrentNotebook() 
+        topicDirectory = "{}/{}".format(currentNotebook.getDirectory(), topicName)
+        currentNotebook.topics[topicName] = topic(topicName, topicDirectory)
+        self.currentDirectory = topicDirectory
+
 
     def addSubTopic(self):
         currentNoteBook = self.getCurrentNotebook() 
@@ -262,14 +300,23 @@ class userAccount():
 class notebook():
     def __init__(self, notebookName, directory):
         self.notebookName = notebookName
-        self.topics = []
-        self.directory = ''
+        self.topics = {}
+        self.directory = directory
 
         #get functions
 
     def getNotebookName(self):
         return self.notebookName
 
+    def getDirectory(self):
+        return self.directory
+
+
+class topic():
+    def __init__(self, topicName, directory):
+        self.topicName = topicName
+        self.directory = directory
+        self.subTopics = {}
 
 
 
