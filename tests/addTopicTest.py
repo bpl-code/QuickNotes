@@ -11,4 +11,8 @@ session.fetchUserInput()
 code = session.codeReader(session.getUserInput(), '')
 session.actionSelect(code)  
 print(session.getCurrentDirectory())
+session.fetchUserInput()
+code = session.codeReader(session.getUserInput(), '')
+session.actionSelect(code)  
+print(session.getCurrentDirectory())
 

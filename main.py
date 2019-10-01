@@ -182,12 +182,12 @@ class userAccount():
 
 
     def codeReader(self, userNote, oldAssigmentCode):
-        assignmentCodesList = {'':'blank', '||':'notebook', ';;':'topic', '..':'back', '<<':'exit', '>>':'addNotebook', ';>':'addTopic', ';/':'addSubTopic', '? ':'ignore'}
+        assignmentCodesList = {'':'blank', '||':'notebook', '//':'topic', '..':'back', '<<':'exit', '>>':'addNotebook', '/>':'addTopic', ';>':'addSubTopic', '? ':'ignore'}
         #add try: if fail then must be a note
         try:
             assigmentCodeName = assignmentCodesList[userNote[:2]]
         except ValueError: 
-            assigmentCodeName = 'ignore'
+            assigmentCodeName = 'note'
 
         #check for double enter
         if assigmentCodeName == oldAssigmentCode and assigmentCodeName == 'blank':
@@ -199,14 +199,16 @@ class userAccount():
 
     def actionSelect(self, assigmentCodeName):
         #Uses the action code to call the correct function
+        trimmedUserInput = self.getUserInput()[2:].lstrip()
+
         if assigmentCodeName == 'blank':
             self.addNote()
 
         elif assigmentCodeName == 'notebook':
-            self.changeDirectory(self.currentUserInput[2:].lstrip(), 'notebook') #Removes assigment code and any possible white space
+            self.changeDirectory(trimmedUserInput, 'notebook') #Removes assigment code and any possible white space
         
         elif assigmentCodeName == 'topic':
-            self.changeDirectory(self.currentUserInput[2:].lstrip(), 'topic')
+            self.changeDirectory(trimmedUserInput, 'topic')
         
         elif assigmentCodeName == 'back':
             self.changeDirectory('..', 'back') #Triggers back function within function
@@ -215,16 +217,19 @@ class userAccount():
             self.changeDirectory(self.notebooks['scrapBook'], 'exit')
         
         elif assigmentCodeName == 'addNotebook':
-            self.addNotebook(self.getUserInput()[2:].lstrip())
+            self.addNotebook(trimmedUserInput)
         
         elif assigmentCodeName == 'addTopic':
-            self.addTopic(self.getUserInput()[2:].lstrip())
+            self.addTopic(trimmedUserInput)
         
         elif assigmentCodeName == 'addSubTopic':
-            self.addSubTopic()
+            self.addSubTopic(trimmedUserInput)
         
         elif assigmentCodeName == 'ignore':
-            self.addNote(self.userInput)
+            self.addNote(trimmedUserInput)
+        
+        elif assigmentCodeName == 'note':
+            self.addNote(self.getUserInput())
 
 
     #Action functions
@@ -256,7 +261,7 @@ class userAccount():
             if destination in currentDirectoryTopics:
                 self.currentDirectory = currentDirectoryTopics[destination].getDirectory()
             else:
-                print("<{}> topic does not exist. Use ;>TOPICNAME to create a topic.")
+                print("<{}> topic does not exist. Use />TOPICNAME to create a topic.")
  
 
         
@@ -282,26 +287,36 @@ class userAccount():
     def addTopic(self, topicName):
         currentNotebook = self.getCurrentNotebook() 
         topicDirectory = "{}/{}".format(currentNotebook.getDirectory(), topicName)
-        currentNotebook.topics[topicName] = topic(topicName, topicDirectory)
+        newTopic = topic(topicName, topicDirectory)
+        currentNotebook.topics[topicName] = newTopic
+        currentNotebook.currentTopic = newTopic
         self.currentDirectory = topicDirectory
 
 
-    def addSubTopic(self):
-        currentNoteBook = self.getCurrentNotebook() 
-        currentTopic = self.getCurrentTopic()
-
-        return 'addSubTopic'
+    def addSubTopic(self, subTopicName):
+        currentTopic = self.getCurrentNotebook().getCurrentTopic()
+        subTopicDirectory = "{}/{}".format(currentTopic.getDirectory(), subTopicName)
+        newSubTopic = subTopic(subTopicName, subTopicDirectory)
+        currentTopic.subTopics[subTopicName] = newSubTopic
+        currentTopic.currentSubTopic = newSubTopic
+        self.currentDirectory = subTopicDirectory
 
     def addNote(self, userNote="\n"):
         currentNoteBook = self.getCurrentNotebook() 
         currentTopic = self.getCurrentTopic()
         return 'addNote'
 
+
+##NOTEBOOK CLASS
+####################################################
+
+
 class notebook():
     def __init__(self, notebookName, directory):
         self.notebookName = notebookName
-        self.topics = {}
         self.directory = directory
+        self.topics = {}
+        self.currentTopic = ''
 
         #get functions
 
@@ -311,12 +326,41 @@ class notebook():
     def getDirectory(self):
         return self.directory
 
+    def getTopics(self):
+        return self.topics
+    
+    def getCurrentTopic(self):
+        return self.currentTopic
+
+
+
+##TOPIC CLASS
+#################################################
+
 
 class topic():
     def __init__(self, topicName, directory):
         self.topicName = topicName
         self.directory = directory
         self.subTopics = {}
+        self.currentSubTopic = ''
+
+    def getDirectory(self):
+        return self.directory
+
+
+##SUBTOPIC CLASS
+#################################################
+
+
+class subTopic():
+    def __init__(self, subTopicName, directory):
+        self.subTopicName = subTopicName
+        self.directory = directory
+        self.subTopics = {}
+
+    def getDirectory(self):
+        return self.directory
 
 
 
